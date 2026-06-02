@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables (may contain AWS credentials)
+.env
+.env.local
+*.env
+
+# AWS credentials
+credentials.json
+aws_credentials*
+
+# Metaflow
+.metaflow/
+
+# Output
+output/
+submission/
+
+# Audit trail databases (contain run-specific data)
+*.db
+
+# Model artifacts (large binary files)
+*.pt
+*.pth
+*.onnx
+*.tar.gz
+*.pkl
+*.joblib
+
+# Data files
+*.csv
+*.parquet
+*.h5
+*.hdf5
+*.dcm
+*.dicom
+
+# Logs
+*.log
+logs/
+
+# Coverage
+.coverage
+htmlcov/

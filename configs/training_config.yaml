@@ -1,0 +1,112 @@
+# FDA-Compliant Training Configuration
+# Document Control: TC-2024-001 Rev 3.0
+# This configuration is part of the Design History File (DHF)
+# per FDA 21 CFR 820.30
+
+# ---- Model Architecture ---- #
+model:
+  architecture: "resnet50-mammography-v3"
+  pretrained_weights: "imagenet"
+  num_classes: 1  # Binary classification (malignant vs. benign)
+  input_size: [1024, 1024]
+  input_channels: 1  # Grayscale mammography
+
+# ---- Training Hyperparameters ---- #
+training:
+  optimizer: "adamw"
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  batch_size: 32
+  num_epochs: 100
+  early_stopping:
+    patience: 10
+    metric: "val_auc"
+    mode: "max"
+    min_delta: 0.001
+  scheduler:
+    type: "cosine_annealing_warm_restarts"
+    T_0: 10
+    T_mult: 2
+    eta_min: 1.0e-7
+  loss_function: "binary_cross_entropy"
+  class_weights:
+    positive: 5.67  # 1/prevalence normalization
+    negative: 1.0
+  gradient_clipping: 1.0
+
+# ---- Data Configuration ---- #
+data:
+  dataset_id: "mammography-screening-v2.1"
+  train_path: "s3://fda-ml-data-lake/datasets/mammography/v2.1/train/"
+  val_path: "s3://fda-ml-data-lake/datasets/mammography/v2.1/val/"
+  test_path: "s3://fda-ml-data-lake/datasets/mammography/v2.1/test/"
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  split_ratios:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+  split_strategy: "stratified"
+
+# ---- Data Augmentation ---- #
+augmentation:
+  train:
+    horizontal_flip: 0.5
+    vertical_flip: 0.0  # Not appropriate for mammography
+    rotation_degrees: 15
+    brightness_range: [0.9, 1.1]
+    contrast_range: [0.9, 1.1]
+    random_crop_scale: [0.85, 1.0]
+    gaussian_noise_std: 0.01
+  val:
+    # No augmentation for validation (deterministic evaluation)
+    horizontal_flip: 0.0
+    rotation_degrees: 0
+
+# ---- Reproducibility ---- #
+reproducibility:
+  random_seed: 42
+  deterministic: true
+  benchmark: false  # Disable cuDNN benchmark for determinism
+
+# ---- Compute Resources ---- #
+resources:
+  gpu:
+    type: "ml.p3.2xlarge"
+    count: 1
+    memory_gb: 16
+  cpu:
+    cores: 4
+    memory_gb: 61
+  storage_gb: 100
+
+# ---- Checkpointing ---- #
+checkpointing:
+  save_frequency: 5  # Every 5 epochs
+  save_best: true
+  best_metric: "val_auc"
+  max_checkpoints: 5
+  s3_checkpoint_path: "s3://fda-ml-models/checkpoints/"
+
+# ---- Logging ---- #
+logging:
+  log_level: "INFO"
+  log_frequency_steps: 100
+  metrics_to_log:
+    - "train_loss"
+    - "val_loss"
+    - "train_auc"
+    - "val_auc"
+    - "train_sensitivity"
+    - "val_sensitivity"
+    - "learning_rate"
+
+# ---- Predetermined Acceptance Criteria ---- #
+# Per FDA 21 CFR 820.30(c) - Design Input
+acceptance_criteria:
+  minimum_val_auc: 0.85
+  minimum_sensitivity: 0.80
+  maximum_false_positive_rate: 0.15
+  predicate_device_auc: 0.85
+  non_inferiority_margin: 0.05

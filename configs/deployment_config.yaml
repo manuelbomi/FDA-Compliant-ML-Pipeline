@@ -1,0 +1,106 @@
+# FDA-Compliant Deployment Configuration
+# Document Control: DC-2024-001 Rev 1.0
+# Production and Process Controls per FDA 21 CFR 820.70
+
+# ---- SageMaker Endpoint ---- #
+sagemaker:
+  endpoint_name: "mammography-screening-prod"
+  instance_type: "ml.m5.xlarge"
+  instance_count: 2
+  max_instance_count: 8
+  target_invocations_per_instance: 100
+  scale_in_cooldown: 300
+  scale_out_cooldown: 60
+  model_data_url: "s3://fda-ml-models/mammography-screening/production/"
+  execution_role: "arn:aws:iam::123456789:role/SageMakerExecutionRole"
+  vpc_config:
+    subnets:
+      - "subnet-abc123"
+      - "subnet-def456"
+    security_groups:
+      - "sg-ml-inference"
+
+# ---- Canary Deployment ---- #
+canary:
+  initial_traffic_pct: 5
+  evaluation_period_minutes: 30
+  error_rate_threshold: 0.01
+  latency_p99_threshold_ms: 500
+  auto_rollback: true
+  promotion_steps:
+    - traffic_pct: 5
+      duration_minutes: 30
+    - traffic_pct: 25
+      duration_minutes: 30
+    - traffic_pct: 50
+      duration_minutes: 30
+    - traffic_pct: 100
+      duration_minutes: 0
+
+# ---- Rollback Configuration ---- #
+rollback:
+  max_error_rate: 0.05
+  max_latency_p99_ms: 1000
+  evaluation_window_minutes: 15
+  auto_rollback_enabled: true
+  notification_channels:
+    - type: "sns"
+      topic: "arn:aws:sns:us-east-1:123456789:ml-deployment-alerts"
+    - type: "pagerduty"
+      service: "ml-samd-oncall"
+
+# ---- Monitoring ---- #
+monitoring:
+  enable_data_capture: true
+  capture_percentage: 100
+  enable_model_monitor: true
+  monitor_schedule: "cron(0 * * * ? *)"
+  drift_detection_threshold: 0.05
+  data_quality:
+    schedule: "cron(0 */6 * * ? *)"
+    max_missing_pct: 0.01
+    max_feature_drift: 0.05
+  model_quality:
+    schedule: "cron(0 0 * * ? *)"
+    performance_thresholds:
+      auc: 0.83  # Alert below this (2% below acceptance criteria)
+      sensitivity: 0.78
+      specificity: 0.83
+  bias_drift:
+    schedule: "cron(0 0 * * ? *)"
+    max_shift: 0.05
+    sensitive_attributes:
+      - "age_group"
+      - "race_ethnicity"
+      - "breast_density"
+
+# ---- Health Checks ---- #
+health_check:
+  path: "/health"
+  interval_seconds: 30
+  timeout_seconds: 5
+  healthy_threshold: 3
+  unhealthy_threshold: 2
+
+# ---- Inference Configuration ---- #
+inference:
+  max_batch_size: 16
+  timeout_seconds: 30
+  max_payload_mb: 50
+  content_types:
+    - "application/x-dicom"
+    - "application/json"
+  response_type: "application/json"
+
+# ---- Approval Requirements ---- #
+approval:
+  required_approvers:
+    - role: "ml_engineering_lead"
+      required: true
+    - role: "regulatory_affairs"
+      required: true
+    - role: "clinical_lead"
+      required: true
+    - role: "qa_manager"
+      required: true
+  approval_expiry_hours: 72
